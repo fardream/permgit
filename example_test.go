@@ -12,7 +12,7 @@ import (
 )
 
 // Example cloning a repo into in-memory store, select several commits from a specific commit, and filter it into another in-memory store.
-func ExampleFilterLinearHistory() {
+func Example() {
 	// URL for the repo
 	url := "https://github.com/fardream/gmsk"
 	// commit to start from
