@@ -10,8 +10,10 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/storer"
 )
 
-// FilterCommit creates a new [object.Commit] in the given [storer.Storer] by applying filters to the tree in the input [object.Commit].
-// Optionally a parent commit can set on the generated commit. The author info, committor info, commit message will be copied from the input commit.
+// FilterCommit creates a new [object.Commit] in the given [storer.Storer]
+// by applying filters to the tree in the input [object.Commit].
+// Optionally a parent commit can set on the generated commit.
+// The author info, committor info, commit message will be copied from the input commit.
 // Howver, GPG sign information will be dropped.
 //
 //   - If after filtering, the tree is empty, a nil will be returned, and error will also be nil.
@@ -55,7 +57,7 @@ func FilterCommit(
 	}
 
 	if err := updateHashAndSave(newcommit, s); err != nil {
-		return nil, fmt.Errorf("failed to save commit %w", err)
+		return nil, fmt.Errorf("failed to save commit: %w", err)
 	}
 
 	return newcommit, nil
@@ -77,13 +79,13 @@ func FilterTree(t *object.Tree, prepath string, s storer.Storer, filter TreeEntr
 			entryToAdd := e
 			file, err := t.TreeEntryFile(&entryToAdd)
 			if err != nil {
-				return nil, fmt.Errorf("failed to obtain path %s due to %w", fullname, err)
+				return nil, fmt.Errorf("failed to obtain path %s: %w", fullname, err)
 			}
 
 			haserr := s.HasEncodedObject(file.Hash)
 			if haserr != nil {
 				if err := updateHashAndSave(file, s); err != nil {
-					return nil, fmt.Errorf("failed to write %s %s into new repo due to %w", e.Mode.String(), fullname, err)
+					return nil, fmt.Errorf("failed to write %s %s into new repo: %w", e.Mode.String(), fullname, err)
 				}
 			}
 			newEntries = append(newEntries, entryToAdd)
@@ -96,7 +98,7 @@ func FilterTree(t *object.Tree, prepath string, s storer.Storer, filter TreeEntr
 			fullname := prepath + "/" + e.Name
 			dir, err := t.Tree(e.Name)
 			if err != nil {
-				return nil, fmt.Errorf("failed to find sub tree %s due to %w", fullname, err)
+				return nil, fmt.Errorf("failed to find sub tree %s: %w", fullname, err)
 			}
 			newTree, err := FilterTree(dir, fullname, s, filter)
 			if err != nil {

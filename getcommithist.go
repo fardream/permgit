@@ -39,7 +39,7 @@ func GetLinearHistory(
 		}
 		numparent := current.NumParents()
 		if numparent > 1 {
-			return nil, fmt.Errorf("commit %s has %d parents, and not linear.", current.Hash.String(), numparent)
+			return nil, fmt.Errorf("commit %s has %d parents, and not linear", current.Hash.String(), numparent)
 		} else if numparent == 0 {
 			break
 		}

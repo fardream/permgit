@@ -46,7 +46,10 @@ func FilterLinearHistory(
 
 		slog.Info("processing commit", "id", i, "hash", v.Hash, "newcommit", commitinfo)
 
-		newhist = append(newhist, newcommit)
+		if newcommit != prevCommit && newcommit != nil {
+			newhist = append(newhist, newcommit)
+		}
+
 		prevCommit = newcommit
 	}
 
