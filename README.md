@@ -32,6 +32,7 @@ Provided a linear history of commits, we can use the same author/committor/commi
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -41,6 +42,12 @@ import (
 
 	"github.com/fardream/permgit"
 )
+
+func orPanic(err error) {
+	if err != nil {
+		log.Panic(err)
+	}
+}
 
 // Example cloning a repo into in-memory store, select several commits from a specific commit, and filter it into another in-memory store.
 func main() {
@@ -53,21 +60,15 @@ func main() {
 	r, err := git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
 		URL: url,
 	})
-	if err != nil {
-		log.Panic(err)
-	}
+	orPanic(err)
 
 	// find the commit
 	headcommit, err := r.CommitObject(headcommithash)
-	if err != nil {
-		log.Panic(err)
-	}
+	orPanic(err)
 
 	// obtain the history of the repo.
-	hist, err := permgit.GetLinearHistory(headcommit, plumbing.ZeroHash, 10)
-	if err != nil {
-		log.Panic(err)
-	}
+	hist, err := permgit.GetLinearHistory(context.Background(), headcommit, plumbing.ZeroHash, 10)
+	orPanic(err)
 
 	// select 3 files
 	orfilter := permgit.NewOrFilter(
@@ -79,22 +80,11 @@ func main() {
 	// output storer
 	outputfs := memory.NewStorage()
 
-	newhist, err := permgit.FilterLinearHistory(hist, outputfs, orfilter)
-	if err != nil {
-		log.Panic(err)
-	}
+	newhist, err := permgit.FilterLinearHistory(context.Background(), hist, outputfs, orfilter)
+	orPanic(err)
 
 	// Note the result is deterministic
 	fmt.Printf("From %d commits, generated %d commits.\nHead commit is:\n", len(hist), len(newhist))
 	fmt.Println(newhist[5].String())
-
-	// Output:
-	// From 10 commits, generated 6 commits.
-	// Head commit is:
-	// commit 65e88d11b1331c3031945587c4c28635886fdc92
-	// Author: Chao Xu <fardream@users.noreply.github.com>
-	// Date:   Sat Sep 02 20:19:42 2023 -0400
-	//
-	//     Update doc for slice input. (#57)
 }
 ```

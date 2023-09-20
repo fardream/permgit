@@ -1,6 +1,7 @@
 package permgit
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"slices"
@@ -16,6 +17,7 @@ import (
 //
 // It returns an error when more than one parents exist for the commit in the historical list.
 func GetLinearHistory(
+	ctx context.Context,
 	head *object.Commit,
 	startHash plumbing.Hash,
 	numCommit int,
@@ -29,6 +31,11 @@ func GetLinearHistory(
 	current := head
 	nseen := 1
 	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
 		result = append(result, current)
 		if startHash == current.Hash {
 			break

@@ -1,6 +1,10 @@
 package permgit
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
+)
 
 // TreeEntryFilter is the interface used to filter the path of the tree.
 type TreeEntryFilter interface {
@@ -85,4 +89,31 @@ func NewOrFilter(filters ...TreeEntryFilter) *OrFilter {
 	f.Add(filters...)
 
 	return f
+}
+
+type ReverseGitIgnore struct {
+	matcher gitignore.Matcher
+}
+
+var _ TreeEntryFilter = (*ReverseGitIgnore)(nil)
+
+func (f *ReverseGitIgnore) IsIn(p string) bool {
+	return f.matcher.Match([]string{p}, false)
+}
+
+func NewReverseGitIgnore(filecontent string) (*ReverseGitIgnore, error) {
+	lines := strings.Split(filecontent, "\n")
+
+	patterns := make([]gitignore.Pattern, 0, len(lines))
+
+	for _, v := range lines {
+		v := strings.TrimSpace(v)
+		if len(v) == 0 || strings.HasPrefix(v, "#") {
+			continue
+		}
+
+		patterns = append(patterns, gitignore.ParsePattern(v, nil))
+	}
+
+	return &ReverseGitIgnore{matcher: gitignore.NewMatcher(patterns)}, nil
 }

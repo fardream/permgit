@@ -1,6 +1,7 @@
 package permgit_test
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -35,7 +36,7 @@ func Example() {
 	orPanic(err)
 
 	// obtain the history of the repo.
-	hist, err := permgit.GetLinearHistory(headcommit, plumbing.ZeroHash, 10)
+	hist, err := permgit.GetLinearHistory(context.Background(), headcommit, plumbing.ZeroHash, 10)
 	orPanic(err)
 
 	// select 3 files
@@ -48,7 +49,7 @@ func Example() {
 	// output storer
 	outputfs := memory.NewStorage()
 
-	newhist, err := permgit.FilterLinearHistory(hist, outputfs, orfilter)
+	newhist, err := permgit.FilterLinearHistory(context.Background(), hist, outputfs, orfilter)
 	orPanic(err)
 
 	// Note the result is deterministic

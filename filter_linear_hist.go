@@ -1,6 +1,8 @@
 package permgit
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -23,6 +25,7 @@ import (
 //
 // The input commits can be obtained from [GetLinearHistory].
 func FilterLinearHistory(
+	ctx context.Context,
 	hist []*object.Commit,
 	s storer.Storer,
 	filter TreeEntryFilter,
@@ -32,8 +35,16 @@ func FilterLinearHistory(
 	var prevCommit *object.Commit
 
 	for i, v := range hist {
-		newcommit, err := FilterCommit(v, prevCommit, s, filter)
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+		newcommit, err := FilterCommit(ctx, v, prevCommit, s, filter)
 		if err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return nil, err
+			}
 			return nil, fmt.Errorf("failed to generate commit at %d for commit %s: %w ", i, v.Hash, err)
 		}
 
@@ -44,7 +55,11 @@ func FilterLinearHistory(
 			newhist = newhist[:0]
 		}
 
-		slog.Info("processing commit", "id", i, "hash", v.Hash, "newcommit", commitinfo)
+		if newcommit == prevCommit {
+			slog.Info("reuse last commit", "id", i, "hash", v.Hash, "commit", commitinfo)
+		} else {
+			slog.Info("processing commit", "id", i, "hash", v.Hash, "newcommit", commitinfo)
+		}
 
 		if newcommit != prevCommit && newcommit != nil {
 			newhist = append(newhist, newcommit)

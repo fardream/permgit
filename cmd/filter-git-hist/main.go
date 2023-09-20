@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
 	"log/slog"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"slices"
+	"syscall"
 
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -43,6 +46,8 @@ type Cmd struct {
 	startCommit string
 
 	branch string
+
+	loglevel int
 }
 
 func newCmd() (cmd *Cmd) {
@@ -68,6 +73,8 @@ func newCmd() (cmd *Cmd) {
 
 	cmd.Flags().StringVar(&cmd.branch, "branch", cmd.branch, "branch to set the head to")
 
+	cmd.Flags().IntVar(&cmd.loglevel, "log-level", cmd.loglevel, "log level passing to slog.")
+
 	cmd.Run = cmd.run
 
 	return
@@ -90,6 +97,13 @@ func newOutputDir(outputdir string, overwrite bool, cache cache.Object) *filesys
 }
 
 func (cmd *Cmd) run(*cobra.Command, []string) {
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	loglevel := new(slog.LevelVar)
+	loglevel.Set(slog.Level(cmd.loglevel))
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: loglevel})))
+
 	absinput := getOrPanic(filepath.Abs(cmd.inputdir))
 
 	slog.Debug("remap input dir", "input", cmd.inputdir, "absinput", absinput)
@@ -125,15 +139,11 @@ func (cmd *Cmd) run(*cobra.Command, []string) {
 		orfilter.Add(permgit.NewPrefixFilter(prefix))
 	}
 
-	hist := getOrPanic(permgit.GetLinearHistory(cmt, startHash, cmd.numCommit))
-
-	for _, v := range hist {
-		fmt.Println(v.String())
-	}
+	hist := getOrPanic(permgit.GetLinearHistory(ctx, cmt, startHash, cmd.numCommit))
 
 	outputfs := newOutputDir(cmd.outputdir, cmd.overwrite, chc)
 
-	newhist := getOrPanic(permgit.FilterLinearHistory(hist, outputfs, orfilter))
+	newhist := getOrPanic(permgit.FilterLinearHistory(ctx, hist, outputfs, orfilter))
 
 	if cmd.branch != "" {
 		slices.Reverse(newhist)
