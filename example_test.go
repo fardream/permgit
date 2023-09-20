@@ -11,6 +11,12 @@ import (
 	"github.com/fardream/permgit"
 )
 
+func orPanic(err error) {
+	if err != nil {
+		log.Panic(err)
+	}
+}
+
 // Example cloning a repo into in-memory store, select several commits from a specific commit, and filter it into another in-memory store.
 func Example() {
 	// URL for the repo
@@ -22,21 +28,15 @@ func Example() {
 	r, err := git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
 		URL: url,
 	})
-	if err != nil {
-		log.Panic(err)
-	}
+	orPanic(err)
 
 	// find the commit
 	headcommit, err := r.CommitObject(headcommithash)
-	if err != nil {
-		log.Panic(err)
-	}
+	orPanic(err)
 
 	// obtain the history of the repo.
 	hist, err := permgit.GetLinearHistory(headcommit, plumbing.ZeroHash, 10)
-	if err != nil {
-		log.Panic(err)
-	}
+	orPanic(err)
 
 	// select 3 files
 	orfilter := permgit.NewOrFilter(
@@ -49,9 +49,7 @@ func Example() {
 	outputfs := memory.NewStorage()
 
 	newhist, err := permgit.FilterLinearHistory(hist, outputfs, orfilter)
-	if err != nil {
-		log.Panic(err)
-	}
+	orPanic(err)
 
 	// Note the result is deterministic
 	fmt.Printf("From %d commits, generated %d commits.\nHead commit is:\n", len(hist), len(newhist))
