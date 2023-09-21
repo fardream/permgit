@@ -22,6 +22,10 @@ import (
 	"github.com/fardream/permgit"
 )
 
+func main() {
+	newCmd().Execute()
+}
+
 func orPanic(err error) {
 	if err != nil {
 		log.Fatal(err)
@@ -45,17 +49,32 @@ type Cmd struct {
 	endCommit   string
 	startCommit string
 
-	branch string
+	branch  string
+	sethead bool
 
 	loglevel int
 }
 
+const longDescription = `filter-git-hist is a more robust but limited git-filter-branch.
+
+The generated history is deterministic, and each run, as long as the parameters stay the same, will be exactly the same.
+
+The input commit history must be linear, there must not be submodules (they will be silently ignored), and
+GPG signature will also be dropped. The output blobs/trees/commits will be written to a different/output directory.
+Input/output are directly read/written from the .git folder of git repositories. For output, an empty .git is sufficient.
+
+The generated commit history can be set to a branch as defined by branch name parameter, and can also be optionally
+set as the head of the repo.
+`
+
 func newCmd() (cmd *Cmd) {
-	cmd = &Cmd{}
-	cmd.Command = &cobra.Command{
-		Use:   "filter-git-hist",
-		Short: "filter files and recreate git history",
-		Long:  "a more robust but limited git-filter-branch",
+	cmd = &Cmd{
+		Command: &cobra.Command{
+			Use:   "filter-git-hist",
+			Short: "filter files and recreate git history",
+			Long:  longDescription,
+			Args:  cobra.NoArgs,
+		},
 	}
 
 	cmd.Flags().StringArrayVarP(&cmd.prefixes, "prefix", "p", cmd.prefixes, "prefixes to include in the generated history")
@@ -69,9 +88,10 @@ func newCmd() (cmd *Cmd) {
 	cmd.Flags().BoolVarP(&cmd.overwrite, "overwrite", "w", cmd.overwrite, "overwrite the destination if it's already exists")
 	cmd.Flags().IntVarP(&cmd.numCommit, "num-commit", "n", cmd.numCommit, "number of commits to seek back")
 	cmd.Flags().StringVarP(&cmd.endCommit, "end-commit", "e", cmd.endCommit, "commit hash (default to head)")
-	cmd.Flags().StringVarP(&cmd.startCommit, "start-commit", "s", cmd.startCommit, "commit has to start from, default to empty, and history will seek to root unless restricted by number of commit")
+	cmd.Flags().StringVarP(&cmd.startCommit, "start-commit", "s", cmd.startCommit, "commit hash to start from, default to empty, and history will seek to root unless restricted by number of commit")
 
 	cmd.Flags().StringVar(&cmd.branch, "branch", cmd.branch, "branch to set the head to")
+	cmd.Flags().BoolVar(&cmd.sethead, "set-head", cmd.sethead, "set the generated commit history as the head")
 
 	cmd.Flags().IntVar(&cmd.loglevel, "log-level", cmd.loglevel, "log level passing to slog.")
 
@@ -152,14 +172,16 @@ func (cmd *Cmd) run(*cobra.Command, []string) {
 				refname := plumbing.NewBranchReferenceName(cmd.branch)
 				ref := plumbing.NewHashReference(refname, v.Hash)
 				orPanic(outputfs.SetReference(ref))
-				headref := plumbing.NewSymbolicReference(plumbing.HEAD, refname)
-				orPanic(outputfs.SetReference(headref))
+				if cmd.sethead {
+					headref := plumbing.NewSymbolicReference(plumbing.HEAD, refname)
+					orPanic(outputfs.SetReference(headref))
+				}
 				break
 			}
 		}
+	} else {
+		if cmd.sethead {
+			slog.Warn("empty branch name, head will not be set")
+		}
 	}
-}
-
-func main() {
-	newCmd().Execute()
 }
