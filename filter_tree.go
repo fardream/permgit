@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 
 	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -52,7 +51,7 @@ func FilterTree(
 			}
 			newEntries = append(newEntries, entryToAdd)
 		case filemode.Submodule:
-			slog.Warn("ignoring submodule", "path", prepath+"/"+e.Name)
+			logger.Warn("ignoring submodule", "path", prepath+"/"+e.Name)
 			continue
 		case filemode.Empty:
 			continue
@@ -79,7 +78,7 @@ func FilterTree(
 	}
 
 	if len(newEntries) == 0 {
-		slog.Debug("empty tree", "tree", t.Hash, "prefix", prepath)
+		logger.Debug("empty tree", "tree", t.Hash, "prefix", prepath)
 		return nil, nil
 	}
 

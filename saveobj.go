@@ -3,7 +3,6 @@ package permgit
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
@@ -13,7 +12,7 @@ import (
 func updateHashAndSave(ctx context.Context, o object.Object, s storer.EncodedObjectStorer) error {
 	ishashzero := o.ID().IsZero()
 	if !ishashzero && s.HasEncodedObject(o.ID()) == nil {
-		slog.Debug("object already in storage", "hash", o.ID().String())
+		logger.Debug("object already in storage", "hash", o.ID().String())
 		return nil
 	}
 

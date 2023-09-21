@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -26,9 +25,12 @@ func main() {
 	newCmd().Execute()
 }
 
+var logger *slog.Logger = nil
+
 func orPanic(err error) {
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("error", "err", err)
+		os.Exit(1)
 	}
 }
 
@@ -122,11 +124,12 @@ func (cmd *Cmd) run(*cobra.Command, []string) {
 
 	loglevel := new(slog.LevelVar)
 	loglevel.Set(slog.Level(cmd.loglevel))
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: loglevel})))
+	logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: loglevel}))
+	permgit.SetLogger(logger)
 
 	absinput := getOrPanic(filepath.Abs(cmd.inputdir))
 
-	slog.Debug("remap input dir", "input", cmd.inputdir, "absinput", absinput)
+	logger.Debug("remap input dir", "input", cmd.inputdir, "absinput", absinput)
 
 	inputbasefs := osfs.New(absinput)
 	chc := cache.NewObjectLRUDefault()
@@ -148,7 +151,7 @@ func (cmd *Cmd) run(*cobra.Command, []string) {
 		endHash = plumbing.NewHash(cmd.endCommit)
 	}
 
-	slog.Debug("head hash", "head", endHash)
+	logger.Debug("head hash", "head", endHash)
 
 	c := getOrPanic(inputfs.EncodedObject(plumbing.CommitObject, endHash))
 
@@ -181,7 +184,7 @@ func (cmd *Cmd) run(*cobra.Command, []string) {
 		}
 	} else {
 		if cmd.sethead {
-			slog.Warn("empty branch name, head will not be set")
+			logger.Warn("empty branch name, head will not be set")
 		}
 	}
 }

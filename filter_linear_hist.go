@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
@@ -56,9 +55,9 @@ func FilterLinearHistory(
 		}
 
 		if newcommit == prevCommit {
-			slog.Info("reuse last commit", "id", i, "hash", v.Hash, "commit", commitinfo)
+			logger.Info("reuse last commit", "id", i, "hash", v.Hash, "commit", commitinfo)
 		} else {
-			slog.Info("processing commit", "id", i, "hash", v.Hash, "newcommit", commitinfo)
+			logger.Info("processing commit", "id", i, "hash", v.Hash, "newcommit", commitinfo)
 		}
 
 		if newcommit != prevCommit && newcommit != nil {
