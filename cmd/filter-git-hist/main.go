@@ -4,57 +4,34 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"slices"
 	"syscall"
 
-	"github.com/go-git/go-billy/v5/osfs"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/cache"
-	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/filesystem"
 	"github.com/spf13/cobra"
 
 	"github.com/fardream/permgit"
+	"github.com/fardream/permgit/cmd"
 )
 
 func main() {
 	newCmd().Execute()
 }
 
-var logger *slog.Logger = nil
-
-func orPanic(err error) {
-	if err != nil {
-		logger.Error("error", "err", err)
-		os.Exit(1)
-	}
-}
-
-func getOrPanic[T any](a T, err error) T {
-	orPanic(err)
-
-	return a
-}
-
 type Cmd struct {
 	*cobra.Command
 
-	prefixes    []string
-	inputdir    string
-	outputdir   string
-	overwrite   bool
-	numCommit   int
-	endCommit   string
-	startCommit string
+	prefixes  []string
+	inputdir  string
+	outputdir string
+	overwrite bool
+	cmd.HistCmd
 
-	branch  string
-	sethead bool
-
-	loglevel int
+	cmd.SetBranchCmd
+	cmd.LogCmd
 }
 
 const longDescription = `filter-git-hist is a more robust but limited git-filter-branch.
@@ -69,8 +46,8 @@ The generated commit history can be set to a branch as defined by branch name pa
 set as the head of the repo.
 `
 
-func newCmd() (cmd *Cmd) {
-	cmd = &Cmd{
+func newCmd() *Cmd {
+	c := &Cmd{
 		Command: &cobra.Command{
 			Use:   "filter-git-hist",
 			Short: "filter files and recreate git history",
@@ -79,112 +56,70 @@ func newCmd() (cmd *Cmd) {
 		},
 	}
 
-	cmd.Flags().StringArrayVarP(&cmd.prefixes, "prefix", "p", cmd.prefixes, "prefixes to include in the generated history")
-	cmd.MarkFlagRequired("prefix")
-	cmd.Flags().StringVarP(&cmd.inputdir, "input-dir", "i", cmd.inputdir, "input directory containing original git repo")
-	cmd.MarkFlagRequired("input-dir")
-	cmd.MarkFlagDirname("input-dir")
-	cmd.Flags().StringVarP(&cmd.outputdir, "output-dir", "o", cmd.outputdir, "output directory")
-	cmd.MarkFlagRequired("output-dir")
-	cmd.MarkFlagDirname("output-dir")
-	cmd.Flags().BoolVarP(&cmd.overwrite, "overwrite", "w", cmd.overwrite, "overwrite the destination if it's already exists")
-	cmd.Flags().IntVarP(&cmd.numCommit, "num-commit", "n", cmd.numCommit, "number of commits to seek back")
-	cmd.Flags().StringVarP(&cmd.endCommit, "end-commit", "e", cmd.endCommit, "commit hash (default to head)")
-	cmd.Flags().StringVarP(&cmd.startCommit, "start-commit", "s", cmd.startCommit, "commit hash to start from, default to empty, and history will seek to root unless restricted by number of commit")
+	c.Flags().StringArrayVarP(&c.prefixes, "prefix", "p", c.prefixes, "prefixes to include in the generated history")
+	c.MarkFlagRequired("prefix")
+	c.Flags().StringVarP(&c.inputdir, "input-dir", "i", c.inputdir, "input directory containing original git repo")
+	c.MarkFlagRequired("input-dir")
+	c.MarkFlagDirname("input-dir")
+	c.Flags().StringVarP(&c.outputdir, "output-dir", "o", c.outputdir, "output directory")
+	c.MarkFlagRequired("output-dir")
+	c.MarkFlagDirname("output-dir")
+	c.Flags().BoolVarP(&c.overwrite, "overwrite", "w", c.overwrite, "overwrite the destination if it's already exists")
+	c.Flags().IntVarP(&c.NumCommit, "num-commit", "n", c.NumCommit, "number of commits to seek back")
+	c.Flags().StringVarP(&c.EndCommit, "end-commit", "e", c.EndCommit, "commit hash (default to head)")
+	c.Flags().StringVarP(&c.StartCommit, "start-commit", "s", c.StartCommit, "commit hash to start from, default to empty, and history will seek to root unless restricted by number of commit")
 
-	cmd.Flags().StringVar(&cmd.branch, "branch", cmd.branch, "branch to set the head to")
-	cmd.Flags().BoolVar(&cmd.sethead, "set-head", cmd.sethead, "set the generated commit history as the head")
+	c.Flags().StringVar(&c.Branch, "branch", c.Branch, "branch to set the head to")
+	c.Flags().BoolVar(&c.SetHead, "set-head", c.SetHead, "set the generated commit history as the head")
 
-	cmd.Flags().IntVar(&cmd.loglevel, "log-level", cmd.loglevel, "log level passing to slog.")
+	c.Flags().IntVar(&c.LogLevel, "log-level", c.LogLevel, "log level passing to slog.")
 
-	cmd.Run = cmd.run
+	c.Run = c.run
 
-	return
+	return c
 }
 
 func newOutputDir(outputdir string, overwrite bool, cache cache.Object) *filesystem.Storage {
 	_, err := os.Stat(outputdir)
 	if err != nil && errors.Is(err, os.ErrNotExist) {
-		orPanic(os.MkdirAll(outputdir, 0o755))
+		cmd.OrPanic(os.MkdirAll(outputdir, 0o755))
 	} else if err != nil {
-		orPanic(err)
+		cmd.OrPanic(err)
 	} else {
-		entries := getOrPanic(os.ReadDir(outputdir))
+		entries := cmd.GetOrPanic(os.ReadDir(outputdir))
 		if len(entries) != 0 && !overwrite {
-			orPanic(fmt.Errorf("directory %s is not empty; consider set overwrite", outputdir))
+			cmd.OrPanic(fmt.Errorf("directory %s is not empty; consider set overwrite", outputdir))
 		}
 	}
 
-	return filesystem.NewStorage(osfs.New(getOrPanic(filepath.Abs(outputdir))), cache)
+	return cmd.NewFileSystem(outputdir, cache)
 }
 
-func (cmd *Cmd) run(*cobra.Command, []string) {
+func (c *Cmd) run(*cobra.Command, []string) {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	loglevel := new(slog.LevelVar)
-	loglevel.Set(slog.Level(cmd.loglevel))
-	logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: loglevel}))
-	permgit.SetLogger(logger)
-
-	absinput := getOrPanic(filepath.Abs(cmd.inputdir))
-
-	logger.Debug("remap input dir", "input", cmd.inputdir, "absinput", absinput)
-
-	inputbasefs := osfs.New(absinput)
+	c.InitLog()
 	chc := cache.NewObjectLRUDefault()
-	inputfs := filesystem.NewStorage(inputbasefs, chc)
 
-	head := getOrPanic(inputfs.Reference(plumbing.HEAD))
+	inputfs := cmd.NewFileSystem(c.inputdir, chc)
 
-	if head.Hash().IsZero() {
-		head = getOrPanic(inputfs.Reference(head.Target()))
-	}
-	endHash := head.Hash()
+	hist := c.GetHistory(ctx, inputfs)
 
-	var startHash plumbing.Hash
-	if cmd.startCommit != "" {
-		startHash = plumbing.NewHash(cmd.startCommit)
-	}
+	orfilter := permgit.NewOrFilterForPrefixes(c.prefixes...)
+	outputfs := newOutputDir(c.outputdir, c.overwrite, chc)
 
-	if cmd.endCommit != "" {
-		endHash = plumbing.NewHash(cmd.endCommit)
-	}
+	newhist := cmd.GetOrPanic(permgit.FilterLinearHistory(ctx, hist, outputfs, orfilter))
 
-	logger.Debug("head hash", "head", endHash)
-
-	c := getOrPanic(inputfs.EncodedObject(plumbing.CommitObject, endHash))
-
-	cmt := getOrPanic(object.DecodeCommit(inputfs, c))
-
-	orfilter := permgit.NewOrFilter()
-	for _, prefix := range cmd.prefixes {
-		orfilter.Add(permgit.NewPrefixFilter(prefix))
-	}
-
-	hist := getOrPanic(permgit.GetLinearHistory(ctx, cmt, startHash, cmd.numCommit))
-
-	outputfs := newOutputDir(cmd.outputdir, cmd.overwrite, chc)
-
-	newhist := getOrPanic(permgit.FilterLinearHistory(ctx, hist, outputfs, orfilter))
-
-	if cmd.branch != "" {
+	if c.Branch != "" {
 		slices.Reverse(newhist)
 		for _, v := range newhist {
 			if v != nil {
-				refname := plumbing.NewBranchReferenceName(cmd.branch)
-				ref := plumbing.NewHashReference(refname, v.Hash)
-				orPanic(outputfs.SetReference(ref))
-				if cmd.sethead {
-					headref := plumbing.NewSymbolicReference(plumbing.HEAD, refname)
-					orPanic(outputfs.SetReference(headref))
-				}
+				c.SetBrancHead(outputfs, v.Hash)
 				break
 			}
 		}
-	} else {
-		if cmd.sethead {
-			logger.Warn("empty branch name, head will not be set")
-		}
+	} else if c.SetHead {
+		cmd.Logger().Warn("empty branch name, head will not be set")
 	}
 }

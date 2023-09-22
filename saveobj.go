@@ -12,7 +12,7 @@ import (
 func updateHashAndSave(ctx context.Context, o object.Object, s storer.EncodedObjectStorer) error {
 	ishashzero := o.ID().IsZero()
 	if !ishashzero && s.HasEncodedObject(o.ID()) == nil {
-		logger.Debug("object already in storage", "hash", o.ID().String())
+		logger.Debug("object already in storage", "hash", o.ID().String(), "type", o.Type().String())
 		return nil
 	}
 

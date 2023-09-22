@@ -2,7 +2,6 @@ package permgit
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -41,10 +40,7 @@ func FilterLinearHistory(
 		}
 		newcommit, err := FilterCommit(ctx, v, prevCommit, s, filter)
 		if err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				return nil, err
-			}
-			return nil, fmt.Errorf("failed to generate commit at %d for commit %s: %w ", i, v.Hash, err)
+			return nil, errorf(err, "failed to generate commit at %d for commit %s: %w ", i, v.Hash, err)
 		}
 
 		commitinfo := "empty"

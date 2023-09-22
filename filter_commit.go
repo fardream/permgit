@@ -2,7 +2,6 @@ package permgit
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/go-git/go-git/v5/plumbing"
@@ -34,10 +33,7 @@ func FilterCommit(
 
 	newtree, err := FilterTree(ctx, t, "", s, filters)
 	if err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return nil, err
-		}
-		return nil, fmt.Errorf("failed to filter tree: %w", err)
+		return nil, errorf(err, "failed to filter tree: %w", err)
 	}
 
 	if newtree == nil {
@@ -68,10 +64,7 @@ func FilterCommit(
 	newcommit.Hash = *newhash
 
 	if err := updateHashAndSave(ctx, newcommit, s); err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return nil, err
-		}
-		return nil, fmt.Errorf("failed to save commit: %w", err)
+		return nil, errorf(err, "failed to save commit: %w", err)
 	}
 
 	return newcommit, nil

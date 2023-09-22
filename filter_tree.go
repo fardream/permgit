@@ -2,13 +2,20 @@ package permgit
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
 )
+
+func addpath(prefix, name string) string {
+	if len(prefix) == 0 {
+		return name
+	} else {
+		return prefix + "/" + name
+	}
+}
 
 // FilterTree filters the entries of the tree by the filter and stores it in the given [storer.Storer].
 // If after filtering the tree is empty, nil will be returned for the tree and the error.
@@ -30,7 +37,7 @@ func FilterTree(
 		}
 		switch e.Mode {
 		case filemode.Deprecated, filemode.Executable, filemode.Regular, filemode.Symlink:
-			fullname := prepath + "/" + e.Name
+			fullname := addpath(prepath, e.Name)
 			if !filter.IsIn(fullname) {
 				continue
 			}
@@ -43,20 +50,17 @@ func FilterTree(
 			haserr := s.HasEncodedObject(file.Hash)
 			if haserr != nil {
 				if err := updateHashAndSave(ctx, file, s); err != nil {
-					if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-						return nil, err
-					}
-					return nil, fmt.Errorf("failed to write %s %s into new repo: %w", e.Mode.String(), fullname, err)
+					return nil, errorf(err, "failed to write %s %s into new repo: %w", e.Mode.String(), fullname, err)
 				}
 			}
 			newEntries = append(newEntries, entryToAdd)
 		case filemode.Submodule:
-			logger.Warn("ignoring submodule", "path", prepath+"/"+e.Name)
+			logger.Warn("ignoring submodule", "path", addpath(prepath, e.Name))
 			continue
 		case filemode.Empty:
 			continue
 		case filemode.Dir:
-			fullname := prepath + "/" + e.Name
+			fullname := addpath(prepath, e.Name)
 			dir, err := t.Tree(e.Name)
 			if err != nil {
 				return nil, fmt.Errorf("failed to find sub tree %s: %w", fullname, err)
@@ -94,11 +98,7 @@ func FilterTree(
 	newTree.Hash = *newHash
 
 	if err := updateHashAndSave(ctx, newTree, s); err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return nil, err
-		}
-
-		return nil, fmt.Errorf("failed to save the new tree %s: %w", prepath, err)
+		return nil, errorf(err, "failed to save the new tree %s: %w", prepath, err)
 	}
 
 	return newTree, nil

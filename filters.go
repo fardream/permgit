@@ -91,6 +91,19 @@ func NewOrFilter(filters ...TreeEntryFilter) *OrFilter {
 	return f
 }
 
+// NewOrFilterForPrefixes creates a new Or filter for all the prefixes
+func NewOrFilterForPrefixes(prefixes ...string) *OrFilter {
+	r := &OrFilter{
+		filters: make([]TreeEntryFilter, 0, len(prefixes)),
+	}
+
+	for _, v := range prefixes {
+		r.filters = append(r.filters, NewPrefixFilter(v))
+	}
+
+	return r
+}
+
 type ReverseGitIgnore struct {
 	matcher gitignore.Matcher
 }
