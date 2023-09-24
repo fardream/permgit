@@ -49,7 +49,7 @@ func ExpandTree(
 	filteredNew *object.Tree,
 	target *object.Tree,
 	targetStorer storer.Storer,
-	filter TreeEntryFilter,
+	filter Filter,
 ) (*object.Tree, error) {
 	filteredPath, err := filteredOrig.Patch(filteredNew)
 	if err != nil {
@@ -82,13 +82,13 @@ func ExpandTree(
 		logger.Debug("patch", "idx", i, "operation", getFileOperation(fromfilename, tofilename), "from", fromfilename, "to", tofilename)
 
 		var thiserr *FilePatchError
-		if fromfile != nil && !filter.IsIn(fromfilename) {
+		if fromfile != nil && !filter.Filter(strings.Split(fromfilename, "/"), false).IsIn() {
 			if thiserr == nil {
 				thiserr = new(FilePatchError)
 			}
 			thiserr.FromFile = fromfilename
 		}
-		if tofile != nil && !filter.IsIn(tofilename) {
+		if tofile != nil && !filter.Filter(strings.Split(tofilename, "/"), false).IsIn() {
 			if thiserr == nil {
 				thiserr = new(FilePatchError)
 			}

@@ -9,12 +9,10 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/storer"
 )
 
-func addpath(prefix, name string) string {
-	if len(prefix) == 0 {
-		return name
-	} else {
-		return prefix + "/" + name
-	}
+func addpath(prefix []string, name string) []string {
+	r := prefix[:]
+	r = append(r, name)
+	return r
 }
 
 // FilterTree filters the entries of the tree by the filter and stores it in the given [storer.Storer].
@@ -24,9 +22,9 @@ func addpath(prefix, name string) string {
 func FilterTree(
 	ctx context.Context,
 	t *object.Tree,
-	prepath string,
+	prepath []string,
 	s storer.Storer,
-	filter TreeEntryFilter,
+	filter Filter,
 ) (*object.Tree, error) {
 	newEntries := make([]object.TreeEntry, 0, len(t.Entries))
 	for _, e := range t.Entries {
@@ -38,7 +36,7 @@ func FilterTree(
 		switch e.Mode {
 		case filemode.Deprecated, filemode.Executable, filemode.Regular, filemode.Symlink:
 			fullname := addpath(prepath, e.Name)
-			if !filter.IsIn(fullname) {
+			if !filter.Filter(fullname, false).IsIn() {
 				continue
 			}
 			entryToAdd := e
@@ -64,6 +62,9 @@ func FilterTree(
 			dir, err := t.Tree(e.Name)
 			if err != nil {
 				return nil, fmt.Errorf("failed to find sub tree %s: %w", fullname, err)
+			}
+			if filter.Filter(fullname, true) == FilterResult_Out {
+				continue
 			}
 			newTree, err := FilterTree(ctx, dir, fullname, s, filter)
 			if err != nil {

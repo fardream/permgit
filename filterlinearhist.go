@@ -26,7 +26,7 @@ func FilterLinearHistory(
 	ctx context.Context,
 	hist []*object.Commit,
 	s storer.Storer,
-	filter TreeEntryFilter,
+	filter Filter,
 ) ([]*object.Commit, error) {
 	newhist := make([]*object.Commit, 0, len(hist))
 

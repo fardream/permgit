@@ -17,7 +17,7 @@ func RemoveGPGForLinearHistory(ctx context.Context, hist []*object.Commit, s sto
 	for i, v := range hist {
 		select {
 		case <-ctx.Done():
-			break
+			return nil, ctx.Err()
 		default:
 		}
 

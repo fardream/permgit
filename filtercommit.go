@@ -24,14 +24,14 @@ func FilterCommit(
 	c *object.Commit,
 	parent *object.Commit,
 	s storer.Storer,
-	filters TreeEntryFilter,
+	filters Filter,
 ) (*object.Commit, error) {
 	t, err := c.Tree()
 	if err != nil {
 		return nil, fmt.Errorf("failed to obtain tree for commit %s: %w", c.Hash.String(), err)
 	}
 
-	newtree, err := FilterTree(ctx, t, "", s, filters)
+	newtree, err := FilterTree(ctx, t, nil, s, filters)
 	if err != nil {
 		return nil, errorf(err, "failed to filter tree: %w", err)
 	}

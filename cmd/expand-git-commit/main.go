@@ -1,3 +1,13 @@
+// expand-git-commit adds back the changes made in a repo filtered by filter-git-hist to the unfiltered repo.
+//
+// The target commit, once filtered down by input filters, should generate exact same tree as the input commit's parent.
+// The generated commit is deterministic, and each run, as long as the parameters stay the same, will be exactly the same.
+//
+// The process will panic if any of the files in change set is filtered out by the input filters.
+//
+// The input/output directory are .git repositories.
+//
+// The generated commit can be set to a branch as defined by the branch name, and can also be optionally set as the head of the repo.
 package main
 
 import (
@@ -20,7 +30,7 @@ func main() {
 type Cmd struct {
 	*cobra.Command
 
-	prefixes  []string
+	cmd.FilterCmd
 	inputdir  string
 	outputdir string
 
@@ -54,8 +64,8 @@ func newCmd() *Cmd {
 		},
 	}
 
-	c.Flags().StringArrayVarP(&c.prefixes, "prefix", "p", c.prefixes, "prefixes use to filter repo")
-	c.MarkFlagRequired("prefix")
+	c.Flags().StringArrayVarP(&c.Patterns, "pattern", "p", c.Patterns, "patterns use to filter repo")
+	c.MarkFlagRequired("pattern")
 	c.Flags().StringVarP(&c.inputdir, "input-dir", "i", c.inputdir, "input directory containing filtered git repo")
 	c.MarkFlagRequired("input-dir")
 	c.MarkFlagDirname("input-dir")
@@ -93,7 +103,7 @@ func (c *Cmd) run(*cobra.Command, []string) {
 	targetcommit := cmd.GetOrPanic(object.GetCommit(outputfs, cmd.MustHash(c.targetCommit)))
 	inputparent := cmd.GetOrPanic(inputcommit.Parent(0))
 
-	filter := permgit.NewOrFilterForPrefixes(c.prefixes...)
+	filter := c.GetFilter()
 
 	newcommit := cmd.GetOrPanic(permgit.ExpandCommit(
 		ctx,
@@ -107,9 +117,5 @@ func (c *Cmd) run(*cobra.Command, []string) {
 
 	cmd.Logger().Debug("newcommit", "hash", newcommit.Hash)
 
-	if c.Branch != "" {
-		c.SetBrancHead(outputfs, newcommit.Hash)
-	} else if c.SetHead {
-		cmd.Logger().Warn("empty branch name, head will not be set")
-	}
+	c.SetBrancHead(outputfs, newcommit.Hash)
 }

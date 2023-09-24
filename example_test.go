@@ -40,11 +40,12 @@ func Example() {
 	orPanic(err)
 
 	// select 3 files
-	orfilter := permgit.NewOrFilter(
-		permgit.NewPrefixFilter("/README.md"),
-		permgit.NewPrefixFilter("/LICENSE"),
-		permgit.NewPrefixFilter("/capis.go"),
+	orfilter, err := permgit.NewOrFilterForPatterns(
+		"README.md",
+		"LICENSE",
+		"capis.go",
 	)
+	orPanic(err)
 
 	// output storer
 	outputfs := memory.NewStorage()

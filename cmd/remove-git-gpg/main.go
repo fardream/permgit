@@ -1,9 +1,9 @@
+// remove-git-gpg removes gpg information from series of commits.
 package main
 
 import (
 	"context"
 	"os/signal"
-	"slices"
 	"syscall"
 
 	"github.com/go-git/go-git/v5/plumbing/cache"
@@ -69,15 +69,5 @@ func (c *Cmd) run(*cobra.Command, []string) {
 
 	newhist := cmd.GetOrPanic(permgit.RemoveGPGForLinearHistory(ctx, hist, inputfs))
 
-	if c.Branch != "" {
-		slices.Reverse(newhist)
-		for _, v := range newhist {
-			if v != nil {
-				c.SetBrancHead(inputfs, v.Hash)
-				break
-			}
-		}
-	} else if c.SetHead {
-		cmd.Logger().Warn("empty branch name, head will not be set")
-	}
+	c.SetBrancHeadFromHistory(inputfs, newhist)
 }

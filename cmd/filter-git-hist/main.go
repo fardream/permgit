@@ -1,3 +1,13 @@
+// filter-git-hist is a more robust but limited git-filter-branch.
+//
+// The generated history is deterministic, and each run, as long as the parameters stay the same, will be exactly the same.
+//
+// The input commit history must be linear, there must not be submodules (they will be silently ignored), and
+// GPG signature will also be dropped. The output blobs/trees/commits will be written to a different/output directory.
+// Input/output are directly read/written from the .git folder of git repositories. For output, an empty .git is sufficient.
+//
+// The generated commit history can be set to a branch as defined by branch name parameter, and can also be optionally
+// set as the head of the repo.
 package main
 
 import (
@@ -6,7 +16,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"slices"
 	"syscall"
 
 	"github.com/go-git/go-git/v5/plumbing/cache"
@@ -24,7 +33,6 @@ func main() {
 type Cmd struct {
 	*cobra.Command
 
-	prefixes  []string
 	inputdir  string
 	outputdir string
 	overwrite bool
@@ -32,6 +40,7 @@ type Cmd struct {
 
 	cmd.SetBranchCmd
 	cmd.LogCmd
+	cmd.FilterCmd
 }
 
 const longDescription = `filter-git-hist is a more robust but limited git-filter-branch.
@@ -56,8 +65,8 @@ func newCmd() *Cmd {
 		},
 	}
 
-	c.Flags().StringArrayVarP(&c.prefixes, "prefix", "p", c.prefixes, "prefixes to include in the generated history")
-	c.MarkFlagRequired("prefix")
+	c.Flags().StringArrayVarP(&c.Patterns, "pattern", "p", c.Patterns, "pattern to include in the generated history")
+	c.MarkFlagRequired("pattern")
 	c.Flags().StringVarP(&c.inputdir, "input-dir", "i", c.inputdir, "input directory containing original git repo")
 	c.MarkFlagRequired("input-dir")
 	c.MarkFlagDirname("input-dir")
@@ -106,20 +115,10 @@ func (c *Cmd) run(*cobra.Command, []string) {
 
 	hist := c.GetHistory(ctx, inputfs)
 
-	orfilter := permgit.NewOrFilterForPrefixes(c.prefixes...)
+	orfilter := c.GetFilter()
 	outputfs := newOutputDir(c.outputdir, c.overwrite, chc)
 
 	newhist := cmd.GetOrPanic(permgit.FilterLinearHistory(ctx, hist, outputfs, orfilter))
 
-	if c.Branch != "" {
-		slices.Reverse(newhist)
-		for _, v := range newhist {
-			if v != nil {
-				c.SetBrancHead(outputfs, v.Hash)
-				break
-			}
-		}
-	} else if c.SetHead {
-		cmd.Logger().Warn("empty branch name, head will not be set")
-	}
+	c.SetBrancHeadFromHistory(inputfs, newhist)
 }

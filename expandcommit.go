@@ -17,7 +17,7 @@ func ExpandCommit(
 	filteredNew *object.Commit,
 	target *object.Commit,
 	targetStorer storer.Storer,
-	filter TreeEntryFilter,
+	filter Filter,
 ) (*object.Commit, error) {
 	newtarget := &object.Commit{
 		Committer:    filteredNew.Committer,
