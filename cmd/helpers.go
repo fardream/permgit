@@ -15,6 +15,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/storage/filesystem"
+	"github.com/spf13/cobra"
 
 	"github.com/fardream/permgit"
 )
@@ -161,9 +162,43 @@ func (c *LogCmd) InitLog() {
 }
 
 type FilterCmd struct {
-	Patterns []string
+	Patterns          []string
+	PatternFile       string
+	IgnoreUnsupported bool
+
+	IsRequired bool
+}
+
+func (c *FilterCmd) SetupFilterCobra(cmd *cobra.Command, required bool) {
+	cmd.Flags().StringArrayVarP(&c.Patterns, "pattern", "p", c.Patterns, "patterns use to filter repo")
+	cmd.Flags().StringVar(&c.PatternFile, "pattern-file", c.PatternFile, "a .gitignore like file for patterns")
+	cmd.MarkFlagFilename("pattern-file")
+	cmd.Flags().BoolVar(&c.IgnoreUnsupported, "allow-unsupported-pattern", c.IgnoreUnsupported, "allow the parser to ignore patterns supported like !")
+	if required {
+		cmd.MarkFlagsOneRequired("pattern-file", "pattern")
+		c.IsRequired = true
+	}
 }
 
 func (c *FilterCmd) GetFilter() permgit.Filter {
-	return GetOrPanic(permgit.NewOrFilterForPatterns(c.Patterns...))
+	filelines := c.Patterns[:]
+	if c.PatternFile != "" {
+		content := GetOrPanic(os.ReadFile(c.PatternFile))
+		filelines = append(filelines, GetOrPanic(permgit.LoadPatternStringFromString(string(content), c.IgnoreUnsupported))...)
+	}
+
+	if !c.IsRequired && len(filelines) == 0 {
+		return &permgit.TrueFilter{}
+	}
+
+	return GetOrPanic(permgit.NewOrFilterForPatterns(filelines...))
 }
+
+const PatternDescription = `supported patterns for filtering:
+
+- all patterns are or-ed - if a file is included by one of the patterns, it will be included.
+- '**' is for multi level directories, and it can only appear once in the match.
+- '*' is for match one level of names.
+- '!' and escapes are unsupported.
+- '#' and blank lines are ignored.
+`

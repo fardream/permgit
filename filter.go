@@ -1,6 +1,9 @@
 package permgit
 
-import "slices"
+import (
+	"slices"
+	"strings"
+)
 
 // FilterResult indicates the result of a filter, it can be
 //   - the input is out
@@ -53,4 +56,9 @@ func FilterResultsAnd(r ...FilterResult) FilterResult {
 // Filter is the interface used to filter the path of the tree.
 type Filter interface {
 	Filter(paths []string, isdir bool) FilterResult
+}
+
+// FilterPath calls [Filter] f on fullpath string.
+func FilterPath(f Filter, fullpath string, isdir bool) FilterResult {
+	return f.Filter(strings.Split(fullpath, "/"), isdir)
 }

@@ -53,7 +53,7 @@ Input/output are directly read/written from the .git folder of git repositories.
 
 The generated commit history can be set to a branch as defined by branch name parameter, and can also be optionally
 set as the head of the repo.
-`
+` + "\n" + cmd.PatternDescription
 
 func newCmd() *Cmd {
 	c := &Cmd{
@@ -65,8 +65,7 @@ func newCmd() *Cmd {
 		},
 	}
 
-	c.Flags().StringArrayVarP(&c.Patterns, "pattern", "p", c.Patterns, "pattern to include in the generated history")
-	c.MarkFlagRequired("pattern")
+	c.SetupFilterCobra(c.Command, true)
 	c.Flags().StringVarP(&c.inputdir, "input-dir", "i", c.inputdir, "input directory containing original git repo")
 	c.MarkFlagRequired("input-dir")
 	c.MarkFlagDirname("input-dir")

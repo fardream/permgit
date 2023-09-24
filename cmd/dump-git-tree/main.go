@@ -43,14 +43,14 @@ func newCmd() *Cmd {
 		Command: &cobra.Command{
 			Use:   "dump-git-tree",
 			Short: "dump the git tree and optionally apply pattern filters.",
-			Long:  "dump-git-tree dump the git tree and optionally apply pattern filters.",
+			Long:  "dump-git-tree dump the git tree and optionally apply pattern filters.\n" + cmd.PatternDescription,
 			Args:  cobra.NoArgs,
 		},
 	}
 
 	c.Run = c.run
 
-	c.Flags().StringArrayVarP(&c.Patterns, "pattern", "p", c.Patterns, "patterns for filter")
+	c.SetupFilterCobra(c.Command, false)
 	c.Flags().StringVarP(&c.dir, "dir", "i", c.dir, "input directory containing original git repo")
 	c.MarkFlagRequired("dir")
 	c.MarkFlagDirname("dir")
@@ -103,11 +103,7 @@ func (c *Cmd) run(*cobra.Command, []string) {
 
 	tree := cmd.GetOrPanic(object.GetTree(fs, hash))
 
-	var filter permgit.Filter = &permgit.TrueFilter{}
-
-	if len(c.Patterns) > 0 {
-		filter = c.GetFilter()
-	}
+	filter := c.GetFilter()
 
 	var out io.WriteCloser
 	if c.outfilename == "" || c.outfilename == "-" {

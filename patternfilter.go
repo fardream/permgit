@@ -105,8 +105,8 @@ func (f *PatternFilter) Filter(paths []string, isdir bool) FilterResult {
 		return nonMultiLevelFilter(isdir, paths, f.filterSegments, f.isDirOnly)
 	}
 
-	beforefilters := f.beforefilters
-	afterfilters := f.afterfilters
+	beforefilters := f.beforefilters[:]
+	afterfilters := f.afterfilters[:]
 
 	predirpaths := paths[:]
 	if !isdir {
@@ -125,26 +125,34 @@ func (f *PatternFilter) Filter(paths []string, isdir bool) FilterResult {
 		if len(afterfilters) == 0 {
 			return FilterResult_In
 		}
-		if len(remainingpaths) == 0 {
-			return FilterResult_DirDive
-		}
-		r := FilterResult_Out
-		for i := 0; i < len(remainingpaths); i++ {
-			afterpaths := remainingpaths[i:]
-			tr := nonMultiLevelFilter(isdir, afterpaths, afterfilters, f.isDirOnly)
-			if tr > r {
-				r = tr
+		if isdir {
+			if len(remainingpaths) == 0 {
+				return FilterResult_DirDive
 			}
-			if r == FilterResult_In {
-				return r
+			r := FilterResult_DirDive
+			for i := 0; i < len(remainingpaths)-len(afterfilters)+1; i++ {
+				afterpaths := remainingpaths[i:]
+				tr := nonMultiLevelFilter(isdir, afterpaths, afterfilters, f.isDirOnly)
+				if tr > r {
+					r = tr
+				}
+				if r == FilterResult_In {
+					return r
+				}
 			}
-		}
 
-		if r == FilterResult_Out && isdir {
-			return FilterResult_DirDive
-		}
+			return r
+		} else {
+			end := len(remainingpaths) - len(afterfilters) + 1
+			for start := 0; start < end; start++ {
+				tr := nonMultiLevelFilter(isdir, remainingpaths[start:], afterfilters, f.isDirOnly)
 
-		return r
+				if tr == FilterResult_In {
+					return FilterResult_In
+				}
+			}
+			return FilterResult_Out
+		}
 	case FilterResult_DirDive:
 		if !isdir || len(remainingpaths) > 0 {
 			return FilterResult_Out
@@ -157,19 +165,19 @@ func (f *PatternFilter) Filter(paths []string, isdir bool) FilterResult {
 	}
 }
 
-func nonMultiLevelFilter(isdir bool, paths []string, filters []string, fisdir bool) FilterResult {
+func nonMultiLevelFilter(isdir bool, paths []string, filters []string, filterIsDirOnly bool) FilterResult {
 	switch {
 	case isdir:
 		// input is dir, do DirFilter
 		return DirFilter(paths, filters)
-	case !isdir && fisdir:
+	case !isdir && filterIsDirOnly:
 		// input is a file, so it will only be in if its dir is in
 		if DirFilter(paths[:len(paths)-1], filters) != FilterResult_In {
 			return FilterResult_Out
 		} else {
 			return FilterResult_In
 		}
-	case !isdir && !fisdir:
+	case !isdir && !filterIsDirOnly:
 		if len(paths) < len(filters) {
 			return FilterResult_Out
 		}
@@ -223,4 +231,59 @@ func DirFilter(paths []string, filtersegs []string) FilterResult {
 
 		return FilterResult_DirDive
 	}
+}
+
+// LoadPatternFilterFromString loads the string content of a pattern file like .gitignore.
+// If ignoreUnsupported is set to false, the loader will error if the any unsupported patterns like ! (reverse) is encountered.
+func LoadPatternFilterFromString(str string, ignoreUnsupported bool) ([]*PatternFilter, error) {
+	lines := strings.Split(str, "\n")
+	result := make([]*PatternFilter, 0, len(lines))
+
+	for i, line := range lines {
+		line := strings.TrimSpace(line)
+		if len(line) == 0 || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		if strings.HasPrefix(line, "!") {
+			if ignoreUnsupported {
+				continue
+			}
+			return nil, fmt.Errorf("line %d of input file %s contains unsupported pattern", i, line)
+		}
+
+		filter, err := NewPatternFilter(line)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate pattern for line %d (%s): %w", i, line, err)
+		}
+
+		result = append(result, filter)
+	}
+
+	return result, nil
+}
+
+// LoadPatternStringFromString loads from the string content of a pattern file like .gitignore.
+// Similar to [LoadPatternFilterFromString], a false ignoreUnsupported will error if unsupported patterns are encountered.
+func LoadPatternStringFromString(str string, ignoreUnsupported bool) ([]string, error) {
+	lines := strings.Split(str, "\n")
+	result := make([]string, 0, len(lines))
+
+	for i, line := range lines {
+		line := strings.TrimSpace(line)
+		if len(line) == 0 || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		if strings.HasPrefix(line, "!") {
+			if ignoreUnsupported {
+				continue
+			}
+			return nil, fmt.Errorf("line %d of input file %s contains unsupported pattern", i, line)
+		}
+
+		result = append(result, line)
+	}
+
+	return result, nil
 }

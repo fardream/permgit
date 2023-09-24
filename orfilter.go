@@ -37,7 +37,7 @@ func NewOrFilter(filters ...Filter) *OrFilter {
 }
 
 // NewOrFilterForPatterns creates a new Or filter for all the patterns
-func NewOrFilterForPatterns(patterns ...string) (*OrFilter, error) {
+func NewOrFilterForPatterns(patterns ...string) (Filter, error) {
 	r := &OrFilter{
 		filters: make([]Filter, 0, len(patterns)),
 	}
@@ -50,5 +50,5 @@ func NewOrFilterForPatterns(patterns ...string) (*OrFilter, error) {
 		r.filters = append(r.filters, p)
 	}
 
-	return r, nil
+	return NewCachedFilter(r), nil
 }

@@ -52,7 +52,7 @@ The process will panic if any of the files in change set is filtered out by the 
 The input/output directory are .git repositories.
 
 The generated commit can be set to a branch as defined by the branch name, and can also be optionally set as the head of the repo.
-`
+` + "\n" + cmd.PatternDescription
 
 func newCmd() *Cmd {
 	c := &Cmd{
@@ -64,8 +64,7 @@ func newCmd() *Cmd {
 		},
 	}
 
-	c.Flags().StringArrayVarP(&c.Patterns, "pattern", "p", c.Patterns, "patterns use to filter repo")
-	c.MarkFlagRequired("pattern")
+	c.SetupFilterCobra(c.Command, true)
 	c.Flags().StringVarP(&c.inputdir, "input-dir", "i", c.inputdir, "input directory containing filtered git repo")
 	c.MarkFlagRequired("input-dir")
 	c.MarkFlagDirname("input-dir")
