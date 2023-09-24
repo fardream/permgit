@@ -120,7 +120,6 @@ func (f *PatternFilter) Filter(paths []string, isdir bool) FilterResult {
 	remainingpaths := paths[len(predirpaths):]
 
 	beforesult := DirFilter(predirpaths, beforefilters)
-	logger.Debug("before result", "path", strings.Join(paths, "/"), "before-path", predirpaths, "remaining", remainingpaths, "result", beforesult.String())
 	switch beforesult {
 	case FilterResult_In:
 		if len(afterfilters) == 0 {
@@ -132,7 +131,6 @@ func (f *PatternFilter) Filter(paths []string, isdir bool) FilterResult {
 		r := FilterResult_Out
 		for i := 0; i < len(remainingpaths); i++ {
 			afterpaths := remainingpaths[i:]
-			logger.Debug("after filter", "after", afterfilters, "paths", afterpaths)
 			tr := nonMultiLevelFilter(isdir, afterpaths, afterfilters, f.isDirOnly)
 			if tr > r {
 				r = tr
