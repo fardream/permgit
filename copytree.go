@@ -9,6 +9,8 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/storer"
 )
 
+// CopyTree copies the given tree into the [storer.Storer].
+// If the tree already exists in s, function returns nil error right away.
 func CopyTree(ctx context.Context, t *object.Tree, s storer.Storer) error {
 	if s.HasEncodedObject(t.Hash) == nil {
 		logger.Debug("tree exists, not copying", "hash", t.Hash)

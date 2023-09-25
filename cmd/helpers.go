@@ -189,7 +189,7 @@ func (c *FilterCmd) GetFilter() permgit.Filter {
 	}
 
 	if !c.IsRequired && len(filelines) == 0 {
-		return &permgit.TrueFilter{}
+		return permgit.NewTrueFilter()
 	}
 
 	return GetOrPanic(permgit.NewOrFilterForPatterns(filelines...))

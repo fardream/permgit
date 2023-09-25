@@ -9,12 +9,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/storer"
 )
 
-func addpath(prefix []string, name string) []string {
-	r := prefix[:]
-	r = append(r, name)
-	return r
-}
-
 // FilterTree filters the entries of the tree by the filter and stores it in the given [storer.Storer].
 // If after filtering the tree is empty, nil will be returned for the tree and the error.
 //
@@ -27,41 +21,52 @@ func FilterTree(
 	filter Filter,
 ) (*object.Tree, error) {
 	newEntries := make([]object.TreeEntry, 0, len(t.Entries))
+
 	for _, e := range t.Entries {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
 		}
+
+		fullname := addpath(prepath, e.Name)
+		fullnamestring := pathsToFullPath(fullname)
+
 		switch e.Mode {
 		case filemode.Deprecated, filemode.Executable, filemode.Regular, filemode.Symlink:
-			fullname := addpath(prepath, e.Name)
 			if !filter.Filter(fullname, false).IsIn() {
 				continue
 			}
 			entryToAdd := e
 			file, err := t.TreeEntryFile(&entryToAdd)
 			if err != nil {
-				return nil, fmt.Errorf("failed to obtain path %s: %w", fullname, err)
+				return nil, fmt.Errorf(
+					"failed to obtain path %s: %w",
+					fullnamestring,
+					err)
 			}
 
 			haserr := s.HasEncodedObject(file.Hash)
 			if haserr != nil {
 				if err := updateHashAndSave(ctx, file, s); err != nil {
-					return nil, errorf(err, "failed to write %s %s into new repo: %w", e.Mode.String(), fullname, err)
+					return nil, errorf(
+						err,
+						"failed to write %s %s into new repo: %w",
+						e.Mode.String(),
+						fullnamestring,
+						err)
 				}
 			}
 			newEntries = append(newEntries, entryToAdd)
 		case filemode.Submodule:
-			logger.Warn("ignoring submodule", "path", addpath(prepath, e.Name))
+			logger.Warn("ignoring submodule", "path", fullnamestring)
 			continue
 		case filemode.Empty:
 			continue
 		case filemode.Dir:
-			fullname := addpath(prepath, e.Name)
 			dir, err := t.Tree(e.Name)
 			if err != nil {
-				return nil, fmt.Errorf("failed to find sub tree %s: %w", fullname, err)
+				return nil, fmt.Errorf("failed to find sub tree %s: %w", fullnamestring, err)
 			}
 			var newTree *object.Tree
 			switch filter.Filter(fullname, true) {
@@ -69,12 +74,12 @@ func FilterTree(
 				continue
 			case FilterResult_In:
 				if err = CopyTree(ctx, dir, s); err != nil {
-					return nil, fmt.Errorf("failed to copy sub tree %s: %w", fullname, err)
+					return nil, errorf(err, "failed to copy sub tree %s: %w", fullnamestring, err)
 				}
 
 				newTree, err = object.GetTree(s, dir.Hash)
 				if err != nil {
-					return nil, fmt.Errorf("failed to get tree %s: %w", fullname, err)
+					return nil, fmt.Errorf("failed to get tree %s: %w", fullnamestring, err)
 				}
 			case FilterResult_DirDive:
 				newTree, err = FilterTree(ctx, dir, fullname, s, filter)
@@ -95,7 +100,7 @@ func FilterTree(
 	}
 
 	if len(newEntries) == 0 {
-		logger.Debug("empty tree", "tree", t.Hash, "prefix", prepath)
+		logger.Debug("empty tree", "tree", t.Hash, "prefix", pathsToFullPath(prepath))
 		return nil, nil
 	}
 
@@ -105,13 +110,13 @@ func FilterTree(
 
 	newHash, err := GetHash(newTree)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get hash for new tree %s: %w", prepath, err)
+		return nil, fmt.Errorf("failed to get hash for new tree %s: %w", pathsToFullPath(prepath), err)
 	}
 
 	newTree.Hash = *newHash
 
 	if err := updateHashAndSave(ctx, newTree, s); err != nil {
-		return nil, errorf(err, "failed to save the new tree %s: %w", prepath, err)
+		return nil, errorf(err, "failed to save the new tree %s: %w", pathsToFullPath(prepath), err)
 	}
 
 	return newTree, nil

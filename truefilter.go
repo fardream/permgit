@@ -8,3 +8,7 @@ var _ Filter = (*TrueFilter)(nil)
 func (TrueFilter) Filter(path []string, isdir bool) FilterResult {
 	return FilterResult_In
 }
+
+func NewTrueFilter() *TrueFilter {
+	return &TrueFilter{}
+}

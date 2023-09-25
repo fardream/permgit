@@ -1,6 +1,6 @@
 package permgit
 
-// OrFilter combines multiple [TreeEntryFilter] into one [TreeEntryFilter] with an "or" operation, the path will be inclueded if any one of the filters includes it.
+// OrFilter combines multiple [Filter] into one [Filter] with an "or" operation, the path will be inclueded if any one of the filters includes it.
 type OrFilter struct {
 	filters []Filter
 }

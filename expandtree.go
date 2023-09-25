@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
 )
@@ -120,6 +121,10 @@ func ExpandTree(
 		if !(fromfile != nil && (tofile == nil || tofile.Path() != fromfile.Path())) {
 			continue
 		}
+		if fromfile.Mode() == filemode.Submodule {
+			logger.Warn("silently ignore submodule in from-file", "path", fromfile.Path())
+			continue
+		}
 
 		err := editTree.Delete(ctx, fromfile.Hash(), fromfile.Mode(), strings.Split(fromfile.Path(), "/"))
 		if err != nil {
@@ -139,6 +144,10 @@ func ExpandTree(
 		if tofile == nil {
 			continue
 		}
+		if tofile.Mode() == filemode.Submodule {
+			logger.Warn("silently ignore submodule in to-file", "path", tofile.Path())
+		}
+
 		if err := editTree.Update(ctx, sourceStorer, targetStorer, tofile.Hash(), tofile.Mode(), strings.Split(tofile.Path(), "/")); err != nil {
 			return nil, errorf(err, "failed to update file %s %s: %w", tofile.Path(), tofile.Hash(), err)
 		}

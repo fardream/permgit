@@ -1,6 +1,7 @@
 package permgit
 
-// AndFilter combines multiple [TreeEntryFilter] into one [TreeEntryFilter] with an "and" operation, the path will only be included when all the filters include it.
+// AndFilter combines multiple [Filter] into one [Filter] with an "and" operation,
+// the path will only be included when all the filters include it.
 type AndFilter struct {
 	filters []Filter
 }
