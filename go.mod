@@ -36,4 +36,7 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
 
-retract v0.3.2
+retract (
+	v0.3.3 // filter-git-hist bug
+	v0.3.2 // filter-git-hist bug
+)

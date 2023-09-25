@@ -145,6 +145,7 @@ func (c *SetBranchCmd) SetBrancHeadFromHistory(s storer.Storer, newhist []*objec
 					headref := plumbing.NewSymbolicReference(plumbing.HEAD, refname)
 					OrPanic(s.SetReference(headref))
 				}
+				break
 			}
 		}
 	} else if c.SetHead {
