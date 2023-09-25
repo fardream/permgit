@@ -10,6 +10,11 @@ import (
 )
 
 func CopyTree(ctx context.Context, t *object.Tree, s storer.Storer) error {
+	if s.HasEncodedObject(t.Hash) == nil {
+		logger.Debug("tree exists, not copying", "hash", t.Hash)
+		return nil
+	}
+
 	logger.Debug("copy tree", "hash", t.Hash)
 	for _, e := range t.Entries {
 		select {
