@@ -119,5 +119,5 @@ func (c *Cmd) run(*cobra.Command, []string) {
 
 	newhist := cmd.GetOrPanic(permgit.FilterLinearHistory(ctx, hist, outputfs, orfilter))
 
-	c.SetBrancHeadFromHistory(inputfs, newhist)
+	c.SetBrancHeadFromHistory(outputfs, newhist)
 }

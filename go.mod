@@ -1,6 +1,6 @@
 module github.com/fardream/permgit
 
-go 1.21.1
+go 1.21.0
 
 require (
 	github.com/go-git/go-billy/v5 v5.5.0
@@ -35,3 +35,5 @@ require (
 	golang.org/x/tools v0.13.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
+
+retract v0.3.2
