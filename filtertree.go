@@ -63,12 +63,24 @@ func FilterTree(
 			if err != nil {
 				return nil, fmt.Errorf("failed to find sub tree %s: %w", fullname, err)
 			}
-			if filter.Filter(fullname, true) == FilterResult_Out {
+			var newTree *object.Tree
+			switch filter.Filter(fullname, true) {
+			case FilterResult_Out:
 				continue
-			}
-			newTree, err := FilterTree(ctx, dir, fullname, s, filter)
-			if err != nil {
-				return nil, err
+			case FilterResult_In:
+				if err = CopyTree(ctx, dir, s); err != nil {
+					return nil, fmt.Errorf("failed to copy sub tree %s: %w", fullname, err)
+				}
+
+				newTree, err = object.GetTree(s, dir.Hash)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get tree %s: %w", fullname, err)
+				}
+			case FilterResult_DirDive:
+				newTree, err = FilterTree(ctx, dir, fullname, s, filter)
+				if err != nil {
+					return nil, err
+				}
 			}
 			if newTree == nil {
 				continue
