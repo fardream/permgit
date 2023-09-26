@@ -146,6 +146,7 @@ func ExpandTree(
 		}
 		if tofile.Mode() == filemode.Submodule {
 			logger.Warn("silently ignore submodule in to-file", "path", tofile.Path())
+			continue
 		}
 
 		if err := editTree.Update(ctx, sourceStorer, targetStorer, tofile.Hash(), tofile.Mode(), strings.Split(tofile.Path(), "/")); err != nil {
